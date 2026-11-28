@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="300">
+<title>Monitor de preços</title>
+<style>
+:root {
+  --bg:#05060a; --bg2:#0d1018; --card:rgba(255,255,255,.045); --card-forte:rgba(255,255,255,.08); --borda:rgba(255,255,255,.09);
+  --texto:#f5f5f7; --sub:#9a9aa3; --acento:#8ab4ff; --queda:#30d158; --alta:#ff6b6b; --ouro:#ffd60a;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg:#f5f5f7; --bg2:#ffffff; --card:#ffffff; --card-forte:#ffffff; --borda:rgba(0,0,0,.08);
+          --texto:#1d1d1f; --sub:#6e6e73; --acento:#0a66d9; --queda:#1a9e45; --alta:#d93a3a; --ouro:#b88a00; }
+}
+* { box-sizing:border-box; margin:0 }
+body { font-family:-apple-system,"SF Pro Display","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  background:radial-gradient(1200px 600px at 50% -10%, var(--bg2), var(--bg) 70%) fixed, var(--bg);
+  color:var(--texto); min-height:100vh; padding:0 16px 64px; -webkit-font-smoothing:antialiased }
+.wrap { max-width:1080px; margin:0 auto }
+header { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:20px 0 14px; color:var(--sub); font-size:13px }
+header b { color:var(--texto); font-weight:600 }
+.vivo { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--queda); margin-right:8px; animation:vivo 2s infinite }
+
+/* ---- abas (filtro de modelos) ---- */
+.abas { display:flex; gap:6px; overflow-x:auto; padding:4px; margin:0 auto 8px; width:max-content; max-width:100%;
+  background:var(--card); border:1px solid var(--borda); border-radius:999px; scrollbar-width:none }
+.abas::-webkit-scrollbar { display:none }
+.aba { flex:none; border:0; background:none; color:var(--sub); font:inherit; font-size:14px; font-weight:600;
+  padding:9px 16px; border-radius:999px; cursor:pointer; display:flex; align-items:center; gap:7px; white-space:nowrap }
+.aba:hover { color:var(--texto) }
+.aba[aria-selected="true"] { background:var(--texto); color:var(--bg) }
+.aba .pt { width:7px; height:7px; border-radius:50%; background:var(--queda) }
+.aba .pt.alvo { background:var(--ouro) }
+.aba small { font-weight:500; opacity:.75 }
+
+/* ---- visão geral ---- */
+.geral { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:14px; margin-top:22px }
+.tile { display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px; padding:20px 16px 18px;
+  border-radius:22px; background:var(--card); border:1px solid var(--borda); cursor:pointer; color:inherit;
+  font:inherit; transition:transform .2s, border-color .2s }
+.tile:hover { transform:translateY(-3px); border-color:color-mix(in srgb, var(--acento) 50%, transparent) }
+.tile.alvo { border-color:color-mix(in srgb, var(--ouro) 70%, transparent) }
+.tile img { width:120px; height:120px; object-fit:contain; margin-bottom:6px; filter:drop-shadow(0 14px 18px rgba(0,0,0,.35)) }
+.tile h3 { font-size:17px }
+.tile .tp { font-size:26px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums }
+.tile .tl { color:var(--sub); font-size:13px }
+.tile .pills { margin-top:8px }
+
+/* ---- herói do modelo ---- */
+.hero { position:relative; text-align:center; padding:8px 0 36px }
+.glow { position:absolute; left:50%; top:30px; width:520px; height:520px; max-width:100%; transform:translateX(-50%);
+  background:radial-gradient(circle, rgba(120,170,255,.33), transparent 62%); filter:blur(20px); z-index:-1 }
+.aparelho { width:min(340px, 74vw); height:auto; aspect-ratio:1; object-fit:contain; display:block; margin:0 auto -6px;
+  filter:drop-shadow(0 30px 40px rgba(0,0,0,.45)); animation:flutua 6s ease-in-out infinite }
+h1 { font-size:clamp(30px, 5vw, 48px); font-weight:700; letter-spacing:-.02em; margin-top:8px }
+.rotulo { color:var(--sub); font-size:14px; text-transform:uppercase; letter-spacing:.12em; margin-top:20px }
+.preco-grande { font-size:clamp(44px, 9vw, 76px); font-weight:700; letter-spacing:-.035em; line-height:1.05;
+  background:linear-gradient(180deg, var(--texto), color-mix(in srgb, var(--texto) 70%, var(--acento)));
+  -webkit-background-clip:text; background-clip:text; color:transparent; font-variant-numeric:tabular-nums }
+.onde { color:var(--sub); font-size:17px; margin-top:6px }
+.onde strong { color:var(--texto) }
+.fonte { font-size:13px; opacity:.75 }
+.pills { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:16px }
+.pill { padding:7px 13px; border-radius:999px; font-size:13.5px; font-weight:600; border:1px solid var(--borda) }
+.pill.queda { color:var(--queda); background:color-mix(in srgb, var(--queda) 14%, transparent); border-color:color-mix(in srgb, var(--queda) 40%, transparent) }
+.pill.alta { color:var(--alta); background:color-mix(in srgb, var(--alta) 12%, transparent) }
+.pill.alvo { color:var(--ouro); background:color-mix(in srgb, var(--ouro) 14%, transparent); border-color:color-mix(in srgb, var(--ouro) 40%, transparent) }
+.pill.neutro, .pill.manual { color:var(--sub); background:var(--card) }
+.pill.manual { color:var(--texto) }
+
+/* ---- cards de loja ---- */
+.grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px }
+.card { display:flex; flex-direction:column; gap:6px; padding:18px; border-radius:20px; background:var(--card);
+  border:1px solid var(--borda); color:inherit; text-decoration:none; backdrop-filter:blur(12px); transition:transform .2s, border-color .2s }
+.card:hover { transform:translateY(-3px); border-color:color-mix(in srgb, var(--acento) 50%, transparent) }
+.card.melhor { border-color:color-mix(in srgb, var(--acento) 55%, transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--acento) 25%, transparent), 0 10px 40px -12px color-mix(in srgb, var(--acento) 45%, transparent) }
+.card.caiu { border-color:color-mix(in srgb, var(--queda) 60%, transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--queda) 30%, transparent), 0 10px 40px -12px color-mix(in srgb, var(--queda) 55%, transparent) }
+.card.manual { border-style:dashed }
+.card.velho { opacity:.75 }
+.topo { display:flex; justify-content:space-between; align-items:center; gap:8px }
+.loja { font-weight:600; font-size:15px }
+.badge { font-size:10.5px; font-weight:700; letter-spacing:.08em; padding:4px 8px; border-radius:6px; color:#04140a; background:var(--queda); white-space:nowrap }
+.badge.b-melhor { color:#03122b; background:var(--acento) }
+.badge.b-manual { color:var(--texto); background:var(--card-forte); border:1px solid var(--borda) }
+.valor { font-size:28px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums }
+.nopix { font-size:13px; font-weight:600; color:var(--sub); letter-spacing:0 }
+.delta { font-size:13.5px; font-weight:600 }
+.delta small { font-weight:400; color:var(--sub) }
+.delta.down { color:var(--queda) } .delta.up { color:var(--alta) } .delta.same { color:var(--sub); font-weight:500 }
+.rodape { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-top:8px }
+.meta { font-size:12px; color:var(--sub); line-height:1.45 }
+.parceiro { color:var(--ouro); font-weight:600 }
+.recorde { color:var(--ouro); font-weight:600 }
+.spark { width:96px; height:30px; flex:none; color:var(--acento) }
+.card.caiu .spark { color:var(--queda) }
+
+/* ---- lojas sem leitura ---- */
+.bloq { margin-top:18px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center }
+.bloq-t { width:100%; text-align:center; color:var(--sub); font-size:12.5px }
+.chip { font-size:13px; color:var(--texto); text-decoration:none; padding:6px 12px; border-radius:999px; border:1px solid var(--borda); background:var(--card) }
+.chip small { color:var(--sub); margin-left:4px }
+a.chip:hover { border-color:var(--acento) }
+.vazio { color:var(--sub); font-size:14px; text-align:center; padding:28px }
+
+/* ---- gráfico ---- */
+.painel-grafico { margin-top:36px; padding:22px; border-radius:20px; background:var(--card); border:1px solid var(--borda) }
+.painel-grafico h2 { font-size:15px; font-weight:600; margin-bottom:12px }
+.grafico { width:100%; height:auto; display:block; overflow:visible }
+.grafico text { fill:var(--sub); font-size:11px }
+.grafico .minlbl { fill:var(--queda); font-weight:700 }
+.grafico .alvolbl { fill:var(--ouro); font-weight:600 }
+
+footer { text-align:center; color:var(--sub); font-size:12px; margin-top:28px; line-height:1.6 }
+footer .botoes { display:flex; gap:8px; justify-content:center; margin-top:10px }
+.btn { background:none; border:1px solid var(--borda); color:var(--sub); border-radius:999px; padding:5px 12px; font:inherit; font-size:12px; cursor:pointer }
+.btn:hover { color:var(--texto); border-color:var(--acento) }
+
+/* ---- aviso de queda ---- */
+.aviso { position:fixed; top:16px; left:50%; transform:translate(-50%, -160%); z-index:50; width:min(560px, calc(100% - 32px));
+  background:var(--queda); color:#04140a; padding:14px 18px; border-radius:16px; font-weight:600; font-size:15px;
+  box-shadow:0 18px 50px -10px rgba(0,0,0,.5); transition:transform .5s cubic-bezier(.2,1.4,.4,1); display:flex; gap:12px; align-items:flex-start }
+.aviso.on { transform:translate(-50%, 0) }
+.aviso button { background:none; border:0; font-size:18px; cursor:pointer; color:inherit; margin-left:auto }
+
+/* ---- ALARME: bateu o alvo ---- */
+#alarme { position:fixed; inset:0; z-index:100; display:none; place-items:center; text-align:center; padding:24px;
+  color:#fff; overflow:hidden; animation:pisca .5s steps(2, jump-none) infinite }
+#alarme.on { display:grid }
+#alarme .caixa { position:relative; z-index:2; max-width:760px }
+#alarme .sirene { font-size:clamp(64px, 14vw, 130px); animation:treme .25s linear infinite }
+#alarme h2 { font-size:clamp(40px, 9vw, 96px); font-weight:900; letter-spacing:-.03em; line-height:1; text-transform:uppercase;
+  text-shadow:0 4px 0 rgba(0,0,0,.25), 0 0 40px rgba(255,255,255,.6); animation:zoom .6s ease-in-out infinite alternate }
+#alarme .valor-alarme { font-size:clamp(48px, 12vw, 120px); font-weight:900; margin:12px 0 4px; color:#fff200; text-shadow:0 0 30px rgba(255,242,0,.8) }
+#alarme p { font-size:clamp(17px, 2.6vw, 24px); font-weight:600 }
+#alarme .acoes { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:28px }
+#alarme a, #alarme button { font:inherit; font-size:18px; font-weight:800; padding:16px 28px; border-radius:999px; border:0; cursor:pointer; text-decoration:none }
+#alarme a { background:#fff200; color:#111; box-shadow:0 0 0 6px rgba(255,242,0,.35) }
+#alarme button { background:rgba(0,0,0,.35); color:#fff }
+.confete { position:absolute; top:-20px; width:12px; height:18px; z-index:1; animation:cai linear infinite }
+
+.pulse { animation:pulse 1.8s ease-in-out infinite }
+@keyframes pulse { 0%,100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--queda) 55%, transparent) } 50% { box-shadow:0 0 0 8px transparent } }
+@keyframes vivo { 0% { box-shadow:0 0 0 0 color-mix(in srgb, var(--queda) 70%, transparent) } 100% { box-shadow:0 0 0 10px transparent } }
+@keyframes flutua { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-10px) } }
+@keyframes pisca { 0% { background:#d70015 } 100% { background:#ff9f0a } }
+@keyframes treme { 0%,100% { transform:rotate(-12deg) } 50% { transform:rotate(12deg) } }
+@keyframes zoom { from { transform:scale(1) } to { transform:scale(1.08) } }
+@keyframes cai { to { transform:translateY(110vh) rotate(720deg) } }
+@media (prefers-reduced-motion: reduce) { * { animation:none !important } }
+@media (max-width:520px) { header { flex-direction:column; align-items:flex-start } .grade { grid-template-columns:1fr } .abas { width:100% } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span><span class="vivo"></span><b>Monitor de preço no Pix</b> · lojas confiáveis · produto novo</span>
+    <span id="hora"></span>
+  </header>
+  <nav class="abas" id="abas" role="tablist" aria-label="Filtrar por modelo"></nav>
+  <main id="conteudo"></main>
+  <footer>
+    Todos os valores são <b>no Pix</b>, para produto novo (lacrado). Quando a loja mostra só um percentual
+    (ex.: Amazon "7% off no Pix", Apple "10% à vista"), o valor é calculado sobre o preço da página;
+    nas lojas lidas pelo Buscapé/Zoom é o preço à vista do comparador.<br>
+    Clique em uma loja para abrir a oferta. <span id="rodape-intervalo"></span>
+    <div class="botoes">
+      <button class="btn" id="btnNotif" hidden>🔔 Ativar notificações do navegador</button>
+      <button class="btn" id="btnTeste">Testar alarme</button>
+    </div>
+  </footer>
+</div>
+
+<div class="aviso" id="aviso" role="alert"><span id="avisoTxt"></span><button aria-label="Fechar" id="avisoFechar">✕</button></div>
+
+<div id="alarme" role="alertdialog" aria-label="Preço alvo atingido">
+  <div class="caixa">
+    <div class="sirene">🚨</div>
+    <h2>Bateu o alvo!</h2>
+    <div class="valor-alarme" id="alValor"></div>
+    <p id="alTexto"></p>
+    <div class="acoes">
+      <a id="alLink" href="#" target="_blank" rel="noopener">COMPRAR AGORA →</a>
+      <button id="alFechar">Fechar alarme</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DADOS = {"id":"2026-11-28 14:00","gerado":"28/11/2026 às 14:00","intervalo_min":10,"modelos":[{"id":"iphone-17","rotulo":"iPhone 17","nome":"iPhone 17 256GB","imagem":"iphone17.png","alvo":4500,"menor_anterior":5390.28,"ofertas":[{"loja":"Amazon","preco":5390.28,"url":"https://www.buscape.com.br/celular/celular-apple-iphone-17-256gb?highlightedItemId=1579039652","fonte":"via Buscapé","metodo":"à vista no comparador","vendedor":"","parceiro":false,"anterior":5390.28,"minimo":5273.1,"recorde":false,"serie":[5859.0,5390.28,5859.0,5390.28,5390.28,5390.28,5390.28,5859.0,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5390.28,5859.0,5390.28,5390.28,5390.28],"antigo":null,"motivo":null},{"loja":"KaBuM!","preco":5699.0,"url":"https://www.kabum.com.br/produto/1016333/iphone-17-256gb-branco","fonte":"site da loja","metodo":"Pix (valor da loja)","vendedor":"Magalu","parceiro":false,"anterior":5699.0,"minimo":5699.0,"recorde":false,"serie":[5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0,5699.0],"antigo":null,"motivo":null},{"loja":"Magazine Luiza","preco":6015.61,"url":"https://www.buscape.com.br/celular/celular-apple-iphone-17-256gb?highlightedItemId=1560776376","fonte":"via Buscapé","metodo":"à vista no comparador","vendedor":"","parceiro":false,"anterior":6015.61,"minimo":5787.9,"recorde":false,"serie":[6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61,6015.61],"antigo":null,"motivo":null},{"loja":"Fast Shop","preco":6119.1,"url":"https://site.fastshop.com.br/iphone-17-256gb-preto-172422/p","fonte":"site da loja","metodo":"Pix (valor da loja)","vendedor":"Loja Mobcom","parceiro":true,"anterior":6119.1,"minimo":6119.1,"recorde":false,"serie":[6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1,6119.1],"antigo":"11:30","motivo":"HTTP 404"},{"loja":"Apple Store","preco":7469.1,"url":"https://www.apple.com/br/shop/buy-iphone/iphone-17/tela-de-6,3-polegadas-256gb-preto","fonte":"site da loja","metodo":"Pix (10% off à vista)","vendedor":"","parceiro":false,"anterior":7469.1,"minimo":7469.1,"recorde":false,"serie":[7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1,7469.1],"antigo":null,"motivo":null}],"quedas":[],"bateu_alvo":false,"manuais":[{"loja":"iPlace","preco":5299.0,"url":"https://www.iplace.com.br/iphone-17-256gb-lavanda/100740PR","quando":"22/11 às 18:15"}],"bloqueadas":[{"loja":"iPlace","motivo":"bloqueia robôs","url":"https://www.iplace.com.br/iphone-17-256gb-lavanda/100740PR"},{"loja":"Casas Bahia","motivo":"bloqueia robôs","url":"https://www.casasbahia.com.br/iphone-17-256gb-preto/p/1582381640"},{"loja":"Ponto","motivo":"bloqueia robôs","url":"https://www.google.com/search?q=site%3Apontofrio.com.br+iPhone+17+256GB"},{"loja":"Extra","motivo":"bloqueia robôs","url":"https://www.google.com/search?q=site%3Aextra.com.br+iPhone+17+256GB"},{"loja":"Mercado Livre","motivo":"exige login","url":"https://www.mercadolivre.com.br/iphone-17-256gb-8-gb-preto-distribuidor-autorizado/p/MLB1055308917"},{"loja":"Claro","motivo":"preço só com plano","url":"https://planoscelular.claro.com.br/celulares/apple-iphone-17-256gb-preto/p/000000000000019461"}],"sem_leitura":[{"loja":"Carrefour","motivo":"site bloqueou robôs; nova tentativa às 19:30"},{"loja":"Vivo","motivo":"site bloqueou robôs; nova tentativa às 19:30"}],"serie_menor":[["2026-11-26 14:00",5273.1],["2026-11-26 15:00",5273.1],["2026-11-26 16:00",5273.1],["2026-11-26 17:00",5273.1],["2026-11-26 18:00",5699.0],["2026-11-26 19:00",5273.1],["2026-11-26 20:00",5273.1],["2026-11-26 21:00",5273.1],["2026-11-26 22:00",5273.1],["2026-11-26 23:00",5273.1],["2026-11-27 00:00",5273.1],["2026-11-27 01:00",5699.0],["2026-11-27 02:00",5273.1],["2026-11-27 03:00",5273.1],["2026-11-27 04:00",5273.1],["2026-11-27 05:00",5273.1],["2026-11-27 06:00",5273.1],["2026-11-27 07:00",5273.1],["2026-11-27 08:00",5273.1],["2026-11-27 09:00",5273.1],["2026-11-27 10:00",5699.0],["2026-11-27 11:00",5390.28],["2026-11-27 12:00",5390.28],["2026-11-27 13:00",5390.28],["2026-11-27 14:00",5390.28],["2026-11-27 15:00",5390.28],["2026-11-27 16:00",5390.28],["2026-11-27 17:00",5390.28],["2026-11-27 18:00",5390.28],["2026-11-27 19:00",5390.28],["2026-11-27 20:00",5699.0],["2026-11-27 21:00",5390.28],["2026-11-27 22:00",5390.28],["2026-11-27 23:00",5390.28],["2026-11-28 00:00",5390.28],["2026-11-28 01:00",5390.28],["2026-11-28 02:00",5390.28],["2026-11-28 03:00",5390.28],["2026-11-28 04:00",5390.28],["2026-11-28 05:00",5390.28],["2026-11-28 06:00",5390.28],["2026-11-28 07:00",5390.28],["2026-11-28 08:00",5390.28],["2026-11-28 09:00",5390.28],["2026-11-28 10:00",5390.28],["2026-11-28 11:00",5699.0],["2026-11-28 12:00",5390.28],["2026-11-28 13:00",5390.28],["2026-11-28 14:00",5390.28]]},{"id":"ps5","rotulo":"PS5","nome":"PS5 Slim com leitor 1TB","imagem":"ps5.png","alvo":3800,"menor_anterior":5319.9,"ofertas":[{"loja":"Amazon","preco":5319.9,"url":"https://www.buscape.com.br/console-de-video-game/console-playstation-5-slim-1tb-sony-4k-hdr?highlightedItemId=1550912550","fonte":"via Buscapé","metodo":"à vista no comparador","vendedor":"","parceiro":false,"anterior":5319.9,"minimo":4609.12,"recorde":false,"serie":[4799.0,4874.07,4874.07,4799.0,4609.12,4609.12,4609.12,4609.12,4609.12,4987.5,4987.5,4799.0,4799.0,4799.0,5250.0,5099.0,5099.0,5099.0,5099.0,5099.0,5099.0,5099.0,5099.0,4799.0,5250.0,4987.5,5319.9,5319.9,5319.9,5319.9],"antigo":null,"motivo":null}],"quedas":[],"bateu_alvo":false,"manuais":[],"bloqueadas":[{"loja":"Casas Bahia","motivo":"bloqueia robôs","url":"https://www.google.com/search?q=site%3Acasasbahia.com.br+PlayStation+5+Slim+com+leitor+1TB"},{"loja":"Ponto","motivo":"bloqueia robôs","url":"https://www.google.com/search?q=site%3Apontofrio.com.br+PlayStation+5+Slim+com+leitor+1TB"},{"loja":"Extra","motivo":"bloqueia robôs","url":"https://www.google.com/search?q=site%3Aextra.com.br+PlayStation+5+Slim+com+leitor+1TB"},{"loja":"Mercado Livre","motivo":"exige login","url":"https://www.google.com/search?q=site%3Amercadolivre.com.br+PlayStation+5+Slim+com+leitor+1TB"}],"sem_leitura":[{"loja":"Vivo","motivo":"site bloqueou robôs; nova tentativa às 19:30"},{"loja":"KaBuM!","motivo":"esgotado"},{"loja":"Terabyte","motivo":"site bloqueou robôs; nova tentativa às 19:30"}],"serie_menor":[["2026-11-26 14:00",4559.05],["2026-11-26 15:00",4394.32],["2026-11-26 16:00",4799.0],["2026-11-26 17:00",4394.32],["2026-11-26 18:00",4394.32],["2026-11-26 19:00",4394.32],["2026-11-26 20:00",4394.32],["2026-11-26 21:00",4394.32],["2026-11-26 22:00",4475.8],["2026-11-26 23:00",4475.8],["2026-11-27 00:00",4475.8],["2026-11-27 01:00",4475.8],["2026-11-27 02:00",4475.8],["2026-11-27 03:00",4799.0],["2026-11-27 04:00",4799.0],["2026-11-27 05:00",4875.08],["2026-11-27 06:00",4875.08],["2026-11-27 07:00",4875.08],["2026-11-27 08:00",4799.0],["2026-11-27 09:00",4799.0],["2026-11-27 10:00",4799.0],["2026-11-27 11:00",4799.0],["2026-11-27 12:00",4874.07],["2026-11-27 13:00",4799.0],["2026-11-27 14:00",4875.08],["2026-11-27 15:00",4609.12],["2026-11-27 16:00",4609.12],["2026-11-27 17:00",4609.12],["2026-11-27 18:00",4609.12],["2026-11-27 19:00",4609.12],["2026-11-27 20:00",4987.5],["2026-11-27 21:00",4987.5],["2026-11-27 22:00",4799.0],["2026-11-27 23:00",4799.0],["2026-11-28 00:00",4799.0],["2026-11-28 01:00",5099.0],["2026-11-28 02:00",5099.0],["2026-11-28 03:00",5099.0],["2026-11-28 04:00",5099.0],["2026-11-28 05:00",5099.0],["2026-11-28 06:00",5099.0],["2026-11-28 07:00",5099.0],["2026-11-28 08:00",4799.0],["2026-11-28 09:00",5250.0],["2026-11-28 10:00",4987.5],["2026-11-28 11:00",5319.9],["2026-11-28 12:00",5319.9],["2026-11-28 13:00",5319.9],["2026-11-28 14:00",5319.9]]}]};
+(function () {
+  "use strict";
+  if (!DADOS) { document.getElementById("conteudo").innerHTML = '<p class="vazio">Sem dados ainda. Rode o monitor.</p>'; return; }
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const brl = (v, cent = true) => "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: cent ? 2 : 0, maximumFractionDigits: cent ? 2 : 0 });
+  const ls = { get(k) { try { return localStorage.getItem(k) } catch (e) { return null } },
+               set(k, v) { try { localStorage.setItem(k, v) } catch (e) {} } };
+  const modelos = DADOS.modelos || [];
+  const porId = Object.fromEntries(modelos.map(m => [m.id, m]));
+  const melhorDe = m => (m.ofertas && m.ofertas[0]) || null;
+
+  $("hora").textContent = "Última verificação: " + DADOS.gerado;
+  $("rodape-intervalo").textContent = `Verificação a cada ${DADOS.intervalo_min} minutos; a página se atualiza sozinha a cada 5 minutos.`;
+
+  // ---------------------------------------------------------------- gráficos
+  function sparkline(v) {
+    if (!v || v.length < 2) return "";
+    const w = 120, h = 34, lo = Math.min(...v), hi = Math.max(...v), r = (hi - lo) || 1;
+    const pts = v.map((p, i) => [i * w / (v.length - 1), h - 4 - (p - lo) / r * (h - 8)]);
+    const [x, y] = pts[pts.length - 1];
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points="${pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}" fill="none" stroke="currentColor"
+        stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="currentColor"/></svg>`;
+  }
+
+  function grafico(serie, alvo) {
+    if (!serie || serie.length < 2) return '<p class="vazio">O gráfico aparece quando houver leituras em horas diferentes.</p>';
+    // largura do desenho = largura real na tela, para o texto não encolher no celular
+    const W = Math.round(Math.max(320, Math.min(1000, ($("conteudo").clientWidth || 760) - 44))), H = 170, vals = serie.map(s => s[1]);
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (alvo && alvo < lo && alvo > lo * 0.75) lo = alvo;           // mostra a linha do alvo se estiver por perto
+    const pad = (hi - lo) * 0.15 || 100; lo -= pad; hi += pad;
+    const px = i => 8 + i * (W - 16) / (serie.length - 1), py = v => 12 + (hi - v) / (hi - lo) * (H - 38);
+    const pts = serie.map((s, i) => px(i).toFixed(1) + "," + py(s[1]).toFixed(1)).join(" ");
+    const iMin = vals.indexOf(Math.min(...vals));
+    const fmt = s => { const d = s.slice(8, 10) + "/" + s.slice(5, 7), h = s.slice(11, 13); return d + " " + h + "h"; };
+    const rot = [...new Set([0, Math.floor(serie.length / 2), serie.length - 1])].map(i =>
+      `<text x="${px(i).toFixed(1)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === serie.length - 1 ? "end" : "middle"}">${fmt(serie[i][0])}</text>`).join("");
+    const linhaAlvo = alvo && alvo >= lo && alvo <= hi ?
+      `<line x1="8" x2="${W - 8}" y1="${py(alvo).toFixed(1)}" y2="${py(alvo).toFixed(1)}" stroke="var(--ouro)" stroke-dasharray="5 5" stroke-width="1.3"/>
+       <text class="alvolbl" x="${W - 8}" y="${(py(alvo) - 6).toFixed(1)}" text-anchor="end">alvo ${brl(alvo, false)}</text>` : "";
+    return `<svg class="grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="Menor preço no Pix ao longo do tempo">
+      <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--acento)" stop-opacity=".28"/>
+      <stop offset="1" stop-color="var(--acento)" stop-opacity="0"/></linearGradient></defs>
+      <polygon points="${px(0).toFixed(1)},${H - 26} ${pts} ${px(serie.length - 1).toFixed(1)},${H - 26}" fill="url(#ga)"/>
+      ${linhaAlvo}
+      <polyline points="${pts}" fill="none" stroke="var(--acento)" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      <circle cx="${px(iMin).toFixed(1)}" cy="${py(vals[iMin]).toFixed(1)}" r="4" fill="var(--queda)"/>
+      <text class="minlbl" x="${px(iMin).toFixed(1)}" y="${(py(vals[iMin]) - 9).toFixed(1)}" text-anchor="middle">${brl(vals[iMin], false)}</text>
+      ${rot}</svg>`;
+  }
+
+  // ---------------------------------------------------------------- pedaços
+  function pillsModelo(m, compacto) {
+    const b = melhorDe(m), out = [];
+    if (!b) return "";
+    if (m.menor_anterior && b.preco < m.menor_anterior - 0.5)
+      out.push(`<span class="pill queda pulse">▼ baixou ${brl(m.menor_anterior - b.preco, false)}${compacto ? "" : " desde a última verificação"}</span>`);
+    else if (!compacto && m.menor_anterior && b.preco > m.menor_anterior + 0.5)
+      out.push(`<span class="pill alta">▲ subiu ${brl(b.preco - m.menor_anterior, false)}</span>`);
+    if (m.alvo) out.push(b.preco <= m.alvo
+      ? `<span class="pill alvo pulse">🎯 Abaixo do alvo de ${brl(m.alvo, false)}</span>`
+      : `<span class="pill neutro">Faltam ${brl(b.preco - m.alvo, false)} para o alvo${compacto ? "" : " de " + brl(m.alvo, false)}</span>`);
+    else if (!compacto) out.push(`<span class="pill neutro">Sem preço-alvo (defina em config.json)</span>`);
+    if (!compacto) for (const mm of m.manuais || []) if (mm.preco < b.preco)
+      out.push(`<span class="pill manual">✋ ${esc(mm.loja)}: ${brl(mm.preco)} no Pix (conferido à mão em ${esc(mm.quando)})</span>`);
+    return out.length ? `<div class="pills">${out.join("")}</div>` : "";
+  }
+
+  function card(o, i) {
+    const caiu = !o.antigo && o.anterior && o.preco < o.anterior - 0.5;
+    const cls = ["card", i === 0 && "melhor", caiu && "caiu", o.antigo && "velho"].filter(Boolean).join(" ");
+    const badge = caiu ? '<span class="badge pulse">BAIXOU</span>' : i === 0 ? '<span class="badge b-melhor">MENOR PREÇO</span>' : "";
+    let delta;
+    if (o.antigo) delta = `<span class="delta same">sem resposta agora · valor das ${esc(o.antigo)}</span>`;
+    else if (caiu) delta = `<span class="delta down">▼ ${brl(o.anterior - o.preco, false)} <small>(era ${brl(o.anterior, false)})</small></span>`;
+    else if (o.anterior && o.preco > o.anterior + 0.5) delta = `<span class="delta up">▲ ${brl(o.preco - o.anterior, false)}</span>`;
+    else if (o.anterior) delta = '<span class="delta same">= sem alteração</span>';
+    else delta = '<span class="delta same">primeira leitura</span>';
+    const vend = !o.vendedor ? "" : o.parceiro
+      ? ` · <span class="parceiro">⚠ vendido por parceiro: ${esc(o.vendedor)}</span>` : ` · vendido por ${esc(o.vendedor)}`;
+    return `<a class="${cls}" href="${esc(o.url)}" target="_blank" rel="noopener">
+      <div class="topo"><span class="loja">${esc(o.loja)}</span>${badge}</div>
+      <div class="valor">${brl(o.preco)} <span class="nopix">no Pix</span></div>
+      ${delta}
+      <div class="rodape"><span class="meta">${esc(o.fonte)}${vend} · mínimo ${brl(o.minimo, false)}${o.recorde ? ' <span class="recorde">★ menor já visto</span>' : ""}</span>${sparkline(o.serie)}</div>
+    </a>`;
+  }
+
+  function cardManual(mm) {
+    return `<a class="card manual" href="${esc(mm.url)}" target="_blank" rel="noopener">
+      <div class="topo"><span class="loja">${esc(mm.loja)}</span><span class="badge b-manual">CONFERIDO À MÃO</span></div>
+      <div class="valor">${brl(mm.preco)} <span class="nopix">no Pix</span></div>
+      <span class="delta same">em ${esc(mm.quando)} · abra para ver o preço de agora</span>
+      <div class="rodape"><span class="meta">o site bloqueia consulta automática</span></div></a>`;
+  }
+
+  // ---------------------------------------------------------------- telas
+  function telaGeral() {
+    return `<section class="geral">${modelos.map(m => {
+      const b = melhorDe(m);
+      return `<button class="tile${m.bateu_alvo ? " alvo" : ""}" data-ir="${esc(m.id)}" aria-label="Ver ${esc(m.nome)}${b ? ": " + brl(b.preco) + " no Pix" : ""}">
+        ${m.imagem ? `<img src="${esc(m.imagem)}" alt="">` : ""}
+        <h3>${esc(m.nome)}</h3>
+        ${b ? `<div class="tp">${brl(b.preco)}</div><div class="tl">no Pix · ${esc(b.loja)}</div>` : '<div class="tl">sem preço nesta verificação</div>'}
+        ${pillsModelo(m, true)}</button>`;
+    }).join("")}</section>`;
+  }
+
+  function telaModelo(m) {
+    const b = melhorDe(m);
+    const heroPreco = b
+      ? `<p class="rotulo">Menor preço no Pix agora</p><p class="preco-grande">${brl(b.preco)}</p>
+         <p class="onde">em <strong>${esc(b.loja)}</strong> <span class="fonte">${esc(b.fonte)}</span></p>${pillsModelo(m, false)}`
+      : '<p class="rotulo">Nenhum preço coletado nesta verificação</p>';
+    const cards = (m.ofertas || []).map(card).join("") + (m.manuais || []).slice().sort((a, c) => a.preco - c.preco).map(cardManual).join("");
+    const bloq = (m.bloqueadas || []).length ? `<div class="bloq"><span class="bloq-t">Sem consulta automática — clique para abrir e conferir:</span>${
+      m.bloqueadas.map(x => `<a class="chip" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.loja)} <small>${esc(x.motivo)}</small></a>`).join("")}</div>` : "";
+    const sem = (m.sem_leitura || []).length ? `<div class="bloq"><span class="bloq-t">Sem leitura nesta verificação:</span>${
+      m.sem_leitura.map(x => `<span class="chip">${esc(x.loja)} <small>${esc(x.motivo)}</small></span>`).join("")}</div>` : "";
+    return `<section class="hero"><div class="glow" aria-hidden="true"></div>
+        ${m.imagem ? `<img class="aparelho" src="${esc(m.imagem)}" alt="${esc(m.nome)}">` : ""}
+        <h1>${esc(m.nome)}</h1>${heroPreco}</section>
+      <section class="grade">${cards || '<p class="vazio">Nenhuma loja respondeu.</p>'}</section>
+      ${bloq}${sem}
+      <section class="painel-grafico"><h2>Menor preço no Pix — últimas 48h</h2>${grafico(m.serie_menor, m.alvo)}</section>`;
+  }
+
+  // ---------------------------------------------------------------- abas
+  const abas = [{ id: "geral", rotulo: "Visão geral" }, ...modelos.map(m => ({ id: m.id, rotulo: m.rotulo, m }))];
+  $("abas").innerHTML = abas.map(a => {
+    const m = a.m, b = m && melhorDe(m);
+    const ponto = m && m.bateu_alvo ? '<span class="pt alvo"></span>' : m && (m.quedas || []).length ? '<span class="pt"></span>' : "";
+    return `<button class="aba" role="tab" id="aba-${esc(a.id)}" data-aba="${esc(a.id)}">${ponto}${esc(a.rotulo)}${b ? ` <small>${brl(b.preco, false)}</small>` : ""}</button>`;
+  }).join("");
+
+  function selecionar(id, foco) {
+    if (id !== "geral" && !porId[id]) id = "geral";
+    document.querySelectorAll(".aba").forEach(b => b.setAttribute("aria-selected", String(b.dataset.aba === id)));
+    $("conteudo").innerHTML = id === "geral" ? telaGeral() : telaModelo(porId[id]);
+    ls.set("aba", id);
+    if (location.hash.slice(1) !== id) history.replaceState(null, "", "#" + id);
+    const abaEl = $("aba-" + id);
+    if (foco) abaEl.focus();
+    abaEl.scrollIntoView({ block: "nearest", inline: "nearest" });  // no celular a barra de abas rola
+    const m = porId[id];
+    document.title = (temAlvo.length ? "🚨 " : temQueda ? "▼ " : "") + (m ? m.rotulo + " · " : "") + "Monitor de preços";
+  }
+  $("abas").addEventListener("click", e => { const b = e.target.closest(".aba"); if (b) selecionar(b.dataset.aba); });
+  window.addEventListener("hashchange", () => selecionar(location.hash.slice(1)));  // favoritos / links #iphone-17e
+  $("abas").addEventListener("keydown", e => {
+    if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+    const ids = abas.map(a => a.id), i = ids.indexOf(ls.get("aba") || "geral");
+    selecionar(ids[(i + (e.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length], true);
+  });
+  $("conteudo").addEventListener("click", e => { const t = e.target.closest("[data-ir]"); if (t) { selecionar(t.dataset.ir); scrollTo(0, 0); } });
+
+  // ---------------------------------------------------------------- alertas
+  const temAlvo = modelos.filter(m => m.bateu_alvo && melhorDe(m));
+  const quedas = modelos.flatMap(m => (m.quedas || []).map(q => `${m.rotulo}: ${q.loja} de ${brl(q.de)} para ${brl(q.para)}`));
+  const temQueda = quedas.length > 0;
+  const novo = ls.get("visto") !== DADOS.id;   // só alerta uma vez por verificação
+
+  let ctx, timerSom;
+  function bipe(f, d, t0) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "square"; o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(.18, ctx.currentTime + t0); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + t0 + d);
+    o.start(ctx.currentTime + t0); o.stop(ctx.currentTime + t0 + d);
+  }
+  function sirene() {
+    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch (e) { return; }
+    const tocar = () => { for (let i = 0; i < 4; i++) { bipe(880, .18, i * .4); bipe(1320, .18, i * .4 + .2); } };
+    tocar(); clearInterval(timerSom); timerSom = setInterval(tocar, 1800);
+  }
+  const pararSom = () => clearInterval(timerSom);
+  function notificar(titulo, corpo, urgente) {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    try { new Notification(titulo, { body: corpo, requireInteraction: !!urgente, tag: DADOS.id + titulo }); } catch (e) {}
+  }
+  const btn = $("btnNotif");
+  if ("Notification" in window && Notification.permission === "default" && location.protocol === "https:") {
+    btn.hidden = false;
+    btn.onclick = () => Notification.requestPermission().then(p => { btn.hidden = p !== "default"; });
+  }
+  let timerTitulo;
+  function piscarTitulo(txt) {
+    const orig = document.title; let on = false; clearInterval(timerTitulo);
+    timerTitulo = setInterval(() => { document.title = (on = !on) ? txt : orig; }, 900);
+  }
+
+  const al = $("alarme");
+  function confetes() {
+    const cores = ["#fff200", "#30d158", "#0a84ff", "#ffffff", "#bf5af2"];
+    for (let i = 0; i < 70; i++) {
+      const c = document.createElement("i"); c.className = "confete";
+      c.style.left = Math.random() * 100 + "vw"; c.style.background = cores[i % cores.length];
+      c.style.animationDuration = 2 + Math.random() * 3 + "s"; c.style.animationDelay = -Math.random() * 5 + "s";
+      al.appendChild(c);
+    }
+  }
+  function abrirAlarme(a) {
+    $("alValor").textContent = brl(a.preco);
+    $("alTexto").textContent = `${a.produto} na ${a.loja} — seu alvo era ${brl(a.alvo)}`;
+    $("alLink").href = a.url || "#";
+    if (!al.querySelector(".confete")) confetes();
+    al.classList.add("on");
+    if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 800]);
+    notificar("🚨 BATEU O ALVO! " + brl(a.preco), a.produto + " na " + a.loja, true);
+    piscarTitulo("🚨 " + brl(a.preco) + " 🚨");
+    sirene();  // se o navegador bloquear o som, ele começa no primeiro clique
+    document.addEventListener("pointerdown", () => { if (al.classList.contains("on")) sirene(); }, { once: true });
+  }
+  const fecharAlarme = () => { al.classList.remove("on"); pararSom(); };
+  $("alFechar").onclick = fecharAlarme;
+  document.addEventListener("keydown", e => { if (e.key === "Escape") fecharAlarme(); });
+  $("btnTeste").onclick = () => abrirAlarme({ produto: "TESTE", loja: "loja de teste", preco: 4799, alvo: 4800, url: "#" });
+  $("avisoFechar").onclick = () => $("aviso").classList.remove("on");
+
+  // ---------------------------------------------------------------- início
+  let inicial = location.hash.slice(1) || ls.get("aba") || (modelos[0] && modelos[0].id) || "geral";
+  if (novo && temAlvo.length) inicial = temAlvo[0].id;  // pula direto para o modelo que bateu o alvo
+  selecionar(inicial);
+
+  if (novo) {
+    if (temQueda) {
+      $("avisoTxt").innerHTML = "▼ <b>O preço baixou!</b><br>" + quedas.map(esc).join("<br>");
+      $("aviso").classList.add("on");
+      notificar("▼ Preço baixou!", quedas.join("\n"));
+      if (!temAlvo.length) piscarTitulo("▼ BAIXOU!");
+    }
+    if (temAlvo.length) {
+      const m = temAlvo[0], b = melhorDe(m);
+      abrirAlarme({ produto: m.nome, loja: b.loja, preco: b.preco, alvo: m.alvo, url: b.url });
+    }
+    ls.set("visto", DADOS.id);
+  } else if (temAlvo.length) {
+    piscarTitulo("🚨 " + brl(melhorDe(temAlvo[0]).preco) + " 🚨");
+  }
+})();
+</script>
+</body>
+</html>
